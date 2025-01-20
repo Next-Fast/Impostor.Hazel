@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <TargetFramework>net9.0</TargetFramework>
+        <DefineConstants>HAZEL_BAG</DefineConstants>
+        <RootNamespace>Next.Hazel</RootNamespace>
+        <AssemblyName>Next.Hazel</AssemblyName>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+            <_Parameter1>Hazel.UnitTests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.1"/>
+        <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="9.0.1"/>
+        <PackageReference Include="Serilog" Version="4.2.1-dev-02337"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Next.Hazel.Abstractions\Next.Hazel.Abstractions.csproj"/>
+    </ItemGroup>
+
+</Project>
+

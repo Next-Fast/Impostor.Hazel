@@ -1,4 +1,6 @@
-﻿namespace Impostor.Hazel.Tests;
+﻿using Next.Hazel;
+
+namespace Impostor.Hazel.Tests;
 
 public class MessageWriterTests
 {
