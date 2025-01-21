@@ -70,10 +70,10 @@ public struct PrfSha256
                 new ByteSpan(hashA).CopyTo(input);
 
                 ByteSpan roundOutput = hmac.ComputeHash(input);
-                if (roundOutput.Length > writer.Length) roundOutput = roundOutput.Slice(0, writer.Length);
+                if (roundOutput.Length > writer.Length) roundOutput = roundOutput[..writer.Length];
 
                 roundOutput.CopyTo(writer);
-                writer = writer.Slice(roundOutput.Length);
+                writer = writer[roundOutput.Length..];
             }
         }
     }

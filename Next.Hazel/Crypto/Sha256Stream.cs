@@ -50,7 +50,7 @@ public class Sha256Stream : IDisposable
         while (data.Length > 0)
         {
             var offset = hash.TransformBlock(data.GetUnderlyingArray(), data.Offset, data.Length, null, 0);
-            data = data.Slice(offset);
+            data = data[offset..];
         }
     }
 

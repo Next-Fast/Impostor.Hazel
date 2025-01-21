@@ -119,7 +119,7 @@ public static class ByteSpanLittleEndianExtensions
     /// <param name="requiredSize">Required size (bytes)</param>
     public static ByteSpan ReuseSpanIfPossible(this ByteSpan source, int requiredSize)
     {
-        if (source.Length >= requiredSize) return source.Slice(0, requiredSize);
+        if (source.Length >= requiredSize) return source[..requiredSize];
 
         return new byte[requiredSize];
     }

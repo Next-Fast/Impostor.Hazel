@@ -1,10 +1,13 @@
 <Project>
     <PropertyGroup>
+        <TargetFrameworks>net9.0;net8.0;net6.0</TargetFrameworks>
+        <LangVersion>latest</LangVersion>
         <Authors>Impostor,Next-Fast</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/Next-Fast/Impostor.Hazel</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <VersionPrefix>1.0.1</VersionPrefix>
         <VersionSuffix>dev</VersionSuffix>
+        <PackageLicense>MIT</PackageLicense>
     </PropertyGroup>
 </Project>

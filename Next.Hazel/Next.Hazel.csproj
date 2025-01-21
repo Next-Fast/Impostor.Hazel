@@ -2,11 +2,11 @@
 
     <PropertyGroup>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <TargetFramework>net9.0</TargetFramework>
         <DefineConstants>HAZEL_BAG</DefineConstants>
         <RootNamespace>Next.Hazel</RootNamespace>
         <AssemblyName>Next.Hazel</AssemblyName>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageId>Next.Hazel</PackageId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -23,6 +23,10 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Next.Hazel.Abstractions\Next.Hazel.Abstractions.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Hazel.nuspec" />
     </ItemGroup>
 
 </Project>

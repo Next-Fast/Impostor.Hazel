@@ -202,7 +202,7 @@ public class UPnPHelper : IDisposable
 
         gatewayURL = gatewayURL.Replace("http://", ""); // strip any protocol
         var n = gatewayURL.IndexOf("/", StringComparison.Ordinal);
-        if (n >= 0) gatewayURL = gatewayURL.Substring(0, n); // Use first portion of URL
+        if (n >= 0) gatewayURL = gatewayURL[..n]; // Use first portion of URL
 
         return "http://" + gatewayURL + subURL;
     }

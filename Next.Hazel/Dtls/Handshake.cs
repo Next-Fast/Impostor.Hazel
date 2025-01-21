@@ -192,26 +192,26 @@ public struct ClientHello
 
         var clientVersion = (ProtocolVersion)span.ReadBigEndian16();
         if (clientVersion != ProtocolVersion.DTLS1_2) return false;
-        span = span.Slice(2);
+        span = span[2..];
 
-        result.Random = span.Slice(0, Dtls.Random.Size);
-        span = span.Slice(Dtls.Random.Size);
+        result.Random = span[..Dtls.Random.Size];
+        span = span[Dtls.Random.Size..];
 
         var sessionIdSize = span[0];
         if (span.Length < 1 + sessionIdSize) return false;
-        span = span.Slice(1 + sessionIdSize);
+        span = span[(1 + sessionIdSize)..];
 
         var cookieSize = span[0];
         if (span.Length < 1 + cookieSize) return false;
         result.Cookie = span.Slice(1, cookieSize);
-        span = span.Slice(1 + cookieSize);
+        span = span[(1 + cookieSize)..];
 
         var cipherSuiteSize = span.ReadBigEndian16();
         if (span.Length < 2 + cipherSuiteSize) return false;
 
         if (cipherSuiteSize % 2 != 0) return false;
         result.CipherSuites = span.Slice(2, cipherSuiteSize);
-        span = span.Slice(2 + cipherSuiteSize);
+        span = span[(2 + cipherSuiteSize)..];
 
         int compressionMethodsSize = span[0];
         var foundNullCompressionMethod = false;
@@ -226,7 +226,7 @@ public struct ClientHello
             || span.Length < 1 + compressionMethodsSize)
             return false;
 
-        span = span.Slice(1 + compressionMethodsSize);
+        span = span[(1 + compressionMethodsSize)..];
 
         // Parse extensions
         if (span.Length > 0)
@@ -234,7 +234,7 @@ public struct ClientHello
             if (span.Length < 2) return false;
 
             var extensionsSize = span.ReadBigEndian16();
-            span = span.Slice(2);
+            span = span[2..];
             if (span.Length != extensionsSize) return false;
 
             while (span.Length > 0)
@@ -248,7 +248,7 @@ public struct ClientHello
                 if (span.Length < 4 + extensionLength) return false;
 
                 var extensionData = span.Slice(4, extensionLength);
-                span = span.Slice(4 + extensionLength);
+                span = span[(4 + extensionLength)..];
                 result.ParseExtension(extensionType, extensionData);
             }
         }
@@ -289,7 +289,7 @@ public struct ClientHello
         {
             if (iterator.ReadBigEndian16() == (ushort)cipherSuite) return true;
 
-            iterator = iterator.Slice(2);
+            iterator = iterator[2..];
         }
 
         return false;
@@ -306,7 +306,7 @@ public struct ClientHello
         {
             if (iterator.ReadBigEndian16() == (ushort)curve) return true;
 
-            iterator = iterator.Slice(2);
+            iterator = iterator[2..];
         }
 
         return false;
@@ -318,37 +318,37 @@ public struct ClientHello
     public void Encode(ByteSpan span)
     {
         span.WriteBigEndian16((ushort)ProtocolVersion.DTLS1_2);
-        span = span.Slice(2);
+        span = span[2..];
 
         Debug.Assert(Random.Length == Dtls.Random.Size);
         Random.CopyTo(span);
-        span = span.Slice(Dtls.Random.Size);
+        span = span[Dtls.Random.Size..];
 
         // Do not encode session ids
         span[0] = 0;
-        span = span.Slice(1);
+        span = span[1..];
 
         span[0] = (byte)Cookie.Length;
-        Cookie.CopyTo(span.Slice(1));
-        span = span.Slice(1 + Cookie.Length);
+        Cookie.CopyTo(span[1..]);
+        span = span[(1 + Cookie.Length)..];
 
         span.WriteBigEndian16((ushort)CipherSuites.Length);
-        CipherSuites.CopyTo(span.Slice(2));
-        span = span.Slice(2 + CipherSuites.Length);
+        CipherSuites.CopyTo(span[2..]);
+        span = span[(2 + CipherSuites.Length)..];
 
         span[0] = 1;
         span[1] = (byte)CompressionMethod.Null;
-        span = span.Slice(2);
+        span = span[2..];
 
         // Extensions size
         span.WriteBigEndian16((ushort)(6 + SupportedCurves.Length));
-        span = span.Slice(2);
+        span = span[2..];
 
         // Supported curves extension
         span.WriteBigEndian16((ushort)ExtensionType.EllipticCurves);
         span.WriteBigEndian16((ushort)(2 + SupportedCurves.Length), 2);
         span.WriteBigEndian16((ushort)SupportedCurves.Length, 4);
-        SupportedCurves.CopyTo(span.Slice(6));
+        SupportedCurves.CopyTo(span[6..]);
     }
 }
 
@@ -384,7 +384,7 @@ public struct HelloVerifyRequest
         if (serverVersion != ProtocolVersion.DTLS1_2) return false;
 
         var cookieSize = span[2];
-        span = span.Slice(3);
+        span = span[3..];
 
         if (span.Length < cookieSize) return false;
 
@@ -404,7 +404,7 @@ public struct HelloVerifyRequest
 
         span.WriteBigEndian16((ushort)ProtocolVersion.DTLS1_2);
         span[2] = CookieSize;
-        cookie.CopyTo(span.Slice(3));
+        cookie.CopyTo(span[3..]);
     }
 
     /// <summary>
@@ -419,7 +419,7 @@ public struct HelloVerifyRequest
         for (int ii = 0, nn = data.Length; ii != nn; ++ii) data[ii] = address[ii];
 
         ByteSpan signature = hmac.ComputeHash(data);
-        return signature.Slice(0, CookieSize);
+        return signature[..CookieSize];
     }
 
     /// <summary>
@@ -470,16 +470,16 @@ public struct ServerHello
         if (span.Length < Size) return false;
 
         var serverVersion = (ProtocolVersion)span.ReadBigEndian16();
-        span = span.Slice(2);
+        span = span[2..];
 
-        result.Random = span.Slice(0, Dtls.Random.Size);
-        span = span.Slice(Dtls.Random.Size);
+        result.Random = span[..Dtls.Random.Size];
+        span = span[Dtls.Random.Size..];
 
         var sessionKeySize = span[0];
-        span = span.Slice(1 + sessionKeySize);
+        span = span[(1 + sessionKeySize)..];
 
         result.CipherSuite = (CipherSuite)span.ReadBigEndian16();
-        span = span.Slice(2);
+        span = span[2..];
 
         var compressionMethod = (CompressionMethod)span[0];
         if (compressionMethod != CompressionMethod.Null) return false;
@@ -495,16 +495,16 @@ public struct ServerHello
         Debug.Assert(Random.Length == Dtls.Random.Size);
 
         span.WriteBigEndian16((ushort)ProtocolVersion.DTLS1_2);
-        span = span.Slice(2);
+        span = span[2..];
 
         Random.CopyTo(span);
-        span = span.Slice(Dtls.Random.Size);
+        span = span[Dtls.Random.Size..];
 
         span[0] = 0;
-        span = span.Slice(1);
+        span = span[1..];
 
         span.WriteBigEndian16((ushort)CipherSuite);
-        span = span.Slice(2);
+        span = span[2..];
 
         span[0] = (byte)CompressionMethod.Null;
     }
@@ -527,9 +527,9 @@ public struct Certificate
 
         var writer = result;
         writer.WriteBigEndian24((uint)certData.Length + 3);
-        writer = writer.Slice(3);
+        writer = writer[3..];
         writer.WriteBigEndian24((uint)certData.Length);
-        writer = writer.Slice(3);
+        writer = writer[3..];
 
         certData.CopyTo(writer);
         return result;
@@ -545,19 +545,23 @@ public struct Certificate
         if (span.Length < 6) return false;
 
         var totalSize = span.ReadBigEndian24();
-        span = span.Slice(3);
+        span = span[3..];
 
         if (span.Length < totalSize) return false;
 
         var certificateSize = span.ReadBigEndian24();
-        span = span.Slice(3);
+        span = span[3..];
         if (span.Length < certificateSize) return false;
 
         var rawData = new byte[certificateSize];
         span.CopyTo(rawData, 0);
         try
         {
+#if NET8_0 || NET6_0
+            certificate = new X509Certificate2(rawData);
+#else
             certificate = X509CertificateLoader.LoadCertificate(rawData);
+#endif
         }
         catch (Exception)
         {

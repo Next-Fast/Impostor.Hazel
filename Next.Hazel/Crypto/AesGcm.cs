@@ -41,7 +41,7 @@ public class Aes128Gcm : IDisposable
 
         // Allocate scratch space
         ByteSpan scratchSpace = new byte[96];
-        hashSubkey_ = scratchSpace.Slice(0, 16);
+        hashSubkey_ = scratchSpace[..16];
         blockJ_ = scratchSpace.Slice(16, 16);
         blockS_ = scratchSpace.Slice(32, 16);
         blockZ_ = scratchSpace.Slice(48, 16);
@@ -89,7 +89,7 @@ public class Aes128Gcm : IDisposable
 
         // Generate and append the authentication tag
         var tagOffset = plaintext.Length;
-        GenerateAuthenticationTag(output.Slice(tagOffset), output.Slice(0, tagOffset), associatedData);
+        GenerateAuthenticationTag(output[tagOffset..], output[..tagOffset], associatedData);
     }
 
     /// <summary>
@@ -126,8 +126,8 @@ public class Aes128Gcm : IDisposable
 
         // Split ciphertext into actual ciphertext and authentication
         // tag components.
-        var authenticationTag = ciphertext.Slice(ciphertext.Length - TagSize);
-        ciphertext = ciphertext.Slice(0, ciphertext.Length - TagSize);
+        var authenticationTag = ciphertext[^TagSize..];
+        ciphertext = ciphertext[..^TagSize];
 
         // Create the initial counter block
         nonce.CopyTo(blockJ_);
@@ -158,7 +158,7 @@ public class Aes128Gcm : IDisposable
             if (fullBlocks * 16 < associatedData.Length)
             {
                 SetSpanToZeros(blockScratch_);
-                associatedData.Slice(fullBlocks * 16).CopyTo(blockScratch_);
+                associatedData[(fullBlocks * 16)..].CopyTo(blockScratch_);
                 GHASH(blockS_, blockScratch_, 1);
             }
 
@@ -168,7 +168,7 @@ public class Aes128Gcm : IDisposable
             if (fullBlocks * 16 < ciphertext.Length)
             {
                 SetSpanToZeros(blockScratch_);
-                ciphertext.Slice(fullBlocks * 16).CopyTo(blockScratch_);
+                ciphertext[(fullBlocks * 16)..].CopyTo(blockScratch_);
                 GHASH(blockS_, blockScratch_, 1);
             }
 
@@ -205,7 +205,7 @@ public class Aes128Gcm : IDisposable
             ++counter;
 
             // CIPH[k](CB[i])
-            encryptor_.EncryptBlock(counterBlock.Slice(0, 16), blockScratch_);
+            encryptor_.EncryptBlock(counterBlock[..16], blockScratch_);
 
             // Y[i] = X[i] xor CIPH[k](CB[i])
             for (var jj = 0; jj != 16 && writeIndex < data.Length; ++jj, ++writeIndex)

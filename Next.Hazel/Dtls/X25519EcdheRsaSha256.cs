@@ -72,8 +72,8 @@ public class X25519EcdheRsaSha256 : IHandshakeCipherSuite
         Debug.Assert(signature.Length == rsaPrivateKey.KeySize / 8);
         output[4 + X25519.KeySize] = (byte)HashAlgorithm.Sha256;
         output[5 + X25519.KeySize] = (byte)SignatureAlgorithm.RSA;
-        output.Slice(6 + X25519.KeySize).WriteBigEndian16((ushort)signature.Length);
-        signature.CopyTo(output.Slice(8 + X25519.KeySize));
+        output[(6 + X25519.KeySize)..].WriteBigEndian16((ushort)signature.Length);
+        signature.CopyTo(output[(8 + X25519.KeySize)..]);
     }
 
     /// <inheritdoc />
@@ -98,10 +98,10 @@ public class X25519EcdheRsaSha256 : IHandshakeCipherSuite
 
         if (serverKeyExchangeMessage[5 + X25519.KeySize] != (byte)SignatureAlgorithm.RSA) return false;
 
-        var keyParameters = serverKeyExchangeMessage.Slice(0, 4 + X25519.KeySize);
-        var othersPublicKey = keyParameters.Slice(4);
+        var keyParameters = serverKeyExchangeMessage[..(4 + X25519.KeySize)];
+        var othersPublicKey = keyParameters[4..];
         var signatureSize = serverKeyExchangeMessage.ReadBigEndian16(6 + X25519.KeySize);
-        var signature = serverKeyExchangeMessage.Slice(4 + keyParameters.Length);
+        var signature = serverKeyExchangeMessage[(4 + keyParameters.Length)..];
 
         if (signatureSize != signature.Length) return false;
 
@@ -138,7 +138,7 @@ public class X25519EcdheRsaSha256 : IHandshakeCipherSuite
 
         if (clientKeyExchangeMessage[0] != X25519.KeySize) return false;
 
-        var othersPublicKey = clientKeyExchangeMessage.Slice(1);
+        var othersPublicKey = clientKeyExchangeMessage[1..];
         return X25519.Func(output, privateAgreementKey, othersPublicKey);
     }
 

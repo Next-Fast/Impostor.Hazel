@@ -27,7 +27,7 @@ public class Aes128GcmRecordProtection : IRecordProtection
     {
         ByteSpan combinedRandom = new byte[serverRandom.Length + clientRandom.Length];
         serverRandom.CopyTo(combinedRandom);
-        clientRandom.CopyTo(combinedRandom.Slice(serverRandom.Length));
+        clientRandom.CopyTo(combinedRandom[serverRandom.Length..]);
 
         // Expand master_secret to encryption keys
         const int ExpandedSize = 0
@@ -42,7 +42,7 @@ public class Aes128GcmRecordProtection : IRecordProtection
         ByteSpan expandedKey = new byte[ExpandedSize];
         PrfSha256.ExpandSecret(expandedKey, masterSecret, PrfLabel.KEY_EXPANSION, combinedRandom);
 
-        var clientWriteKey = expandedKey.Slice(0, Aes128Gcm.KeySize);
+        var clientWriteKey = expandedKey[..Aes128Gcm.KeySize];
         var serverWriteKey = expandedKey.Slice(Aes128Gcm.KeySize, Aes128Gcm.KeySize);
         clientWriteIV = expandedKey.Slice(2 * Aes128Gcm.KeySize, ImplicitNonceSize);
         serverWriteIV = expandedKey.Slice(2 * Aes128Gcm.KeySize + ImplicitNonceSize, ImplicitNonceSize);
