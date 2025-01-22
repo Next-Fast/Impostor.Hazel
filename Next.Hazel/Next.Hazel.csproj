@@ -6,7 +6,7 @@
         <RootNamespace>Next.Hazel</RootNamespace>
         <AssemblyName>Next.Hazel</AssemblyName>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <PackageId>Next.Hazel</PackageId>
+        <PackageId>NextFast.Hazel</PackageId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -15,9 +15,15 @@
         </AssemblyAttribute>
     </ItemGroup>
 
-    <ItemGroup>
+    <ItemGroup Condition="'$(TargetFramework)' != 'net6.0'">
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.1"/>
         <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="9.0.1"/>
+        <PackageReference Include="Serilog" Version="4.2.1-dev-02337"/>
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="6.0.36"/>
         <PackageReference Include="Serilog" Version="4.2.1-dev-02337"/>
     </ItemGroup>
 
