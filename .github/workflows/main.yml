@@ -5,6 +5,7 @@ on: [ "push", "pull_request" ]
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'Next-Fast' 
 
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +20,7 @@ jobs:
       - name: Run the Cake script
         uses: cake-build/cake-action@94fa55b4f83cee90f2621654eba6a056ae71df90
         with:
-          verbosity: Diagnostic
+          verbosity: Minimal
 
       - uses: actions/upload-artifact@v4
         with:

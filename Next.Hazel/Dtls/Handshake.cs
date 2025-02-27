@@ -144,10 +144,74 @@ public struct Handshake
 }
 
 /// <summary>
+/// Encode/Decode session information in ClientHello
+/// </summary>
+public struct HazelDtlsSessionInfo
+{
+    public const byte CurrentClientSessionSize = 1;
+    public const byte CurrentClientSessionVersion = 1;
+
+    public byte FullSize => (byte)(1 + this.PayloadSize);
+    public byte PayloadSize;
+    public byte Version;
+
+    public HazelDtlsSessionInfo(byte version)
+    {
+        this.Version = version;
+        switch (version)
+        {
+            case 0: // Does not write version byte
+                this.PayloadSize = 0;
+                return;
+            case 1: // Writes version byte only
+                this.PayloadSize = 1;
+                return;
+        }
+
+        throw new ArgumentOutOfRangeException("Unimplemented Hazel session version");
+    }
+
+    public void Encode(ByteSpan writer)
+    {
+        writer[0] = this.PayloadSize;
+
+        if (this.Version > 0)
+        {
+            writer[1] = this.Version;
+        }
+    }
+
+    public static bool Parse(out HazelDtlsSessionInfo result, ByteSpan reader)
+    {
+        result = new HazelDtlsSessionInfo();
+        if (reader.Length < 1)
+        {
+            return false;
+        }
+
+        result.PayloadSize = reader[0];
+
+        // Back compat, length may be zero, version defaults to 0.
+        if (result.PayloadSize == 0)
+        {
+            result.Version = 0;
+            return true;
+        }
+
+        // Forward compat, if length > 1, ignore the rest
+        result.Version = reader[1];
+        return true;
+    }
+}
+
+
+/// <summary>
 ///     Encode/decode ClientHello Handshake message
 /// </summary>
 public struct ClientHello
 {
+    public ProtocolVersion ClientProtocolVersion;
+    public HazelDtlsSessionInfo SessionInfo;
     public ByteSpan Random;
     public ByteSpan Cookie;
     public ByteSpan CipherSuites;
@@ -175,6 +239,7 @@ public struct ClientHello
     public int CalculateSize()
     {
         return MinSize
+               + SessionInfo.PayloadSize
                + Cookie.Length
                + CipherSuites.Length
                + SupportedCurves.Length
@@ -185,21 +250,24 @@ public struct ClientHello
     ///     Parse a Handshake ClientHello payload from wire format
     /// </summary>
     /// <returns>True if we successfully decode the ClientHello message. Otherwise false</returns>
-    public static bool Parse(out ClientHello result, ByteSpan span)
+    public static bool Parse(out ClientHello result, ProtocolVersion? expectedProtocolVersion, ByteSpan span)
     {
         result = new ClientHello();
         if (span.Length < MinSize) return false;
 
-        var clientVersion = (ProtocolVersion)span.ReadBigEndian16();
-        if (clientVersion != ProtocolVersion.DTLS1_2) return false;
+        result.ClientProtocolVersion = (ProtocolVersion)span.ReadBigEndian16();
+        if (expectedProtocolVersion.HasValue && result.ClientProtocolVersion != expectedProtocolVersion.Value) return false;
         span = span[2..];
 
         result.Random = span[..Dtls.Random.Size];
         span = span[Dtls.Random.Size..];
 
-        var sessionIdSize = span[0];
-        if (span.Length < 1 + sessionIdSize) return false;
-        span = span[(1 + sessionIdSize)..];
+        if (!HazelDtlsSessionInfo.Parse(out result.SessionInfo, span))
+        {
+            return false;
+        }
+
+        span = span[result.SessionInfo.FullSize..];
 
         var cookieSize = span[0];
         if (span.Length < 1 + cookieSize) return false;
@@ -228,29 +296,32 @@ public struct ClientHello
 
         span = span[(1 + compressionMethodsSize)..];
 
-        // Parse extensions
-        if (span.Length > 0)
+        switch (span.Length)
         {
-            if (span.Length < 2) return false;
+            // Parse extensions
+            case <= 0:
+                return true;
+            case < 2:
+                return false;
+        }
 
-            var extensionsSize = span.ReadBigEndian16();
-            span = span[2..];
-            if (span.Length != extensionsSize) return false;
+        var extensionsSize = span.ReadBigEndian16();
+        span = span[2..];
+        if (span.Length != extensionsSize) return false;
 
-            while (span.Length > 0)
-            {
-                // Parse extension header
-                if (span.Length < 4) return false;
+        while (span.Length > 0)
+        {
+            // Parse extension header
+            if (span.Length < 4) return false;
 
-                var extensionType = (ExtensionType)span.ReadBigEndian16();
-                var extensionLength = span.ReadBigEndian16(2);
+            var extensionType = (ExtensionType)span.ReadBigEndian16();
+            var extensionLength = span.ReadBigEndian16(2);
 
-                if (span.Length < 4 + extensionLength) return false;
+            if (span.Length < 4 + extensionLength) return false;
 
-                var extensionData = span.Slice(4, extensionLength);
-                span = span[(4 + extensionLength)..];
-                result.ParseExtension(extensionType, extensionData);
-            }
+            var extensionData = span.Slice(4, extensionLength);
+            span = span[(4 + extensionLength)..];
+            result.ParseExtension(extensionType, extensionData);
         }
 
         return true;
@@ -324,9 +395,9 @@ public struct ClientHello
         Random.CopyTo(span);
         span = span[Dtls.Random.Size..];
 
-        // Do not encode session ids
-        span[0] = 0;
-        span = span[1..];
+
+        SessionInfo.Encode(span);
+        span = span[SessionInfo.FullSize..];
 
         span[0] = (byte)Cookie.Length;
         Cookie.CopyTo(span[1..]);
@@ -445,17 +516,20 @@ public struct HelloVerifyRequest
 /// </summary>
 public struct ServerHello
 {
-    //public ProtocolVersion ServerVersion;
+    public ProtocolVersion ServerProtocolVersion;
     public ByteSpan Random;
     public CipherSuite CipherSuite;
+    public HazelDtlsSessionInfo Session;
 
-    public const int Size = 0
-                            + 2 // server_version
-                            + Dtls.Random.Size // random
-                            + 1 // session_id (size)
-                            + 2 // cipher_suite
-                            + 1 // compression_method
+    public const int MinSize = 0
+                               + 2 // server_version
+                               + Dtls.Random.Size // random
+                               + 1 // session_id (size)
+                               + 2 // cipher_suite
+                               + 1 // compression_method
         ;
+
+    public int Size => MinSize + Session.PayloadSize;
 
     /// <summary>
     ///     Parse a Handshake ServerHello payload from wire format
@@ -467,24 +541,26 @@ public struct ServerHello
     public static bool Parse(out ServerHello result, ByteSpan span)
     {
         result = new ServerHello();
-        if (span.Length < Size) return false;
+        if (span.Length < MinSize) return false;
 
-        var serverVersion = (ProtocolVersion)span.ReadBigEndian16();
+        result.ServerProtocolVersion = (ProtocolVersion)span.ReadBigEndian16();
         span = span[2..];
 
         result.Random = span[..Dtls.Random.Size];
         span = span[Dtls.Random.Size..];
 
-        var sessionKeySize = span[0];
-        span = span[(1 + sessionKeySize)..];
+        if (!HazelDtlsSessionInfo.Parse(out result.Session, span))
+        {
+            return false;
+        }
+
+        span = span[result.Session.FullSize..];
 
         result.CipherSuite = (CipherSuite)span.ReadBigEndian16();
         span = span[2..];
 
         var compressionMethod = (CompressionMethod)span[0];
-        if (compressionMethod != CompressionMethod.Null) return false;
-
-        return true;
+        return compressionMethod == CompressionMethod.Null;
     }
 
     /// <summary>
@@ -500,8 +576,8 @@ public struct ServerHello
         Random.CopyTo(span);
         span = span[Dtls.Random.Size..];
 
-        span[0] = 0;
-        span = span[1..];
+        Session.Encode(span);
+        span = span[Session.FullSize..];
 
         span.WriteBigEndian16((ushort)CipherSuite);
         span = span[2..];

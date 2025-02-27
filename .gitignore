@@ -192,3 +192,5 @@ GeneratedArtifacts/
 _Pvt_Extensions/
 ModelManifest.xml
 *.ide
+
+.idea/

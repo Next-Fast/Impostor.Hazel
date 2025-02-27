@@ -6,6 +6,11 @@ namespace Next.Hazel.Dtls;
 public enum ProtocolVersion : ushort
 {
     /// <summary>
+    ///     Use to obfuscate DTLS as regular UDP packets
+    /// </summary>
+    UDP = 0,
+
+    /// <summary>
     ///     DTLS 1.2
     /// </summary>
     DTLS1_2 = 0xFEFD
@@ -28,6 +33,7 @@ public enum ContentType : byte
 public struct Record
 {
     public ContentType ContentType;
+    public ProtocolVersion ProtocolVersion;
     public ushort Epoch;
     public ulong SequenceNumber;
     public ushort Length;
@@ -38,21 +44,19 @@ public struct Record
     ///     Parse a DTLS record from wire format
     /// </summary>
     /// <returns>True if we successfully parse the record header. Otherwise false</returns>
-    public static bool Parse(out Record record, ByteSpan span)
+    public static bool Parse(out Record record, ProtocolVersion? expectedProtocolVersion, ByteSpan span)
     {
         record = new Record();
 
         if (span.Length < Size) return false;
 
         record.ContentType = (ContentType)span[0];
-        var version = (ProtocolVersion)span.ReadBigEndian16(1);
+        record.ProtocolVersion = (ProtocolVersion)span.ReadBigEndian16(1);
         record.Epoch = span.ReadBigEndian16(3);
         record.SequenceNumber = span.ReadBigEndian48(5);
         record.Length = span.ReadBigEndian16(11);
 
-        if (version != ProtocolVersion.DTLS1_2) return false;
-
-        return true;
+        return !expectedProtocolVersion.HasValue || record.ProtocolVersion == expectedProtocolVersion.Value;
     }
 
     /// <summary>
@@ -61,7 +65,7 @@ public struct Record
     public void Encode(ByteSpan span)
     {
         span[0] = (byte)ContentType;
-        span.WriteBigEndian16((ushort)ProtocolVersion.DTLS1_2, 1);
+        span.WriteBigEndian16((ushort)ProtocolVersion, 1);
         span.WriteBigEndian16(Epoch, 3);
         span.WriteBigEndian48(SequenceNumber, 5);
         span.WriteBigEndian16(Length, 11);

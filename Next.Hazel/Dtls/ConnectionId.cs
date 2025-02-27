@@ -35,4 +35,14 @@ public struct ConnectionId : IEquatable<ConnectionId>
     {
         return EndPoint.GetHashCode();
     }
+
+    public static bool operator ==(ConnectionId left, ConnectionId right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(ConnectionId left, ConnectionId right)
+    {
+        return !(left == right);
+    }
 }
