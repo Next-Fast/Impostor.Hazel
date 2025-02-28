@@ -1096,8 +1096,7 @@ public class DtlsConnectionListener : UdpConnectionListener
 
         var originalMessage = message;
 
-        Handshake handshake;
-        if (!Handshake.Parse(out handshake, message))
+        if (!Handshake.Parse(out var handshake, message))
         {
             Logger.Error($"Dropping malformed handshake message from non-peer `{peerAddress}`");
             return;

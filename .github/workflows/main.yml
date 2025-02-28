@@ -18,11 +18,15 @@ jobs:
           dotnet-version: 9.x
 
       - name: Run the Cake script
-        uses: cake-build/cake-action@94fa55b4f83cee90f2621654eba6a056ae71df90
+        uses: cake-build/cake-action@v3
         with:
           verbosity: Minimal
 
       - uses: actions/upload-artifact@v4
         with:
           name: nuget packages
-          path: ./*/bin/Release*/*.nupkg
+          path: ./Build/*.nupkg
+
+      - name: Publish to NuGet
+        run: |
+          dotnet nuget push ./Build/*.nupkg -k ${{ secrets.NUGETKEY }} -s https://api.nuget.org/v3/index.json
