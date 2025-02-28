@@ -10,7 +10,7 @@ Task("Build")
     var settings = new DotNetBuildSettings
     {
         Configuration = "Release",
-        OutputDirectory = "./Build/"
+        OutputDirectory = "./Build/",
         MSBuildSettings = new DotNetMSBuildSettings(),
     };
 
