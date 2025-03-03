@@ -10,7 +10,7 @@ public interface IMessageReader : IDisposable
     /// <summary>
     ///     Gets the buffer of the message.
     /// </summary>
-    byte[] Buffer { get; }
+    byte[]? Buffer { get; }
 
     /// <summary>
     ///     Gets the offset of our current <see cref="IMessageReader" /> in the entire <see cref="Buffer" />.
@@ -68,4 +68,8 @@ public interface IMessageReader : IDisposable
     void RemoveMessage(IMessageReader message);
 
     IMessageReader Copy(int offset = 0);
+
+    int BytesRemaining { get; }
+    
+    IMessageReader? Parent { get; }
 }

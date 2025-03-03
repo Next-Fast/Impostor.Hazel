@@ -324,32 +324,32 @@ public class MessageReaderTests
         while (inner.Position < inner.Length)
         {
             var message = inner.ReadMessage();
-            if (message.Tag == 1)
+            switch (message.Tag)
             {
-                Assert.Equal("HiTest1", message.ReadString());
-
-                var messageSub = message.ReadMessage();
-                if (messageSub.Tag == 2)
+                case 1:
                 {
+                    Assert.Equal("HiTest1", message.ReadString());
+
+                    var messageSub = message.ReadMessage();
+                    if (messageSub.Tag != 2) continue;
                     Assert.Equal("RemoveMe!", messageSub.ReadString());
 
                     // Remove this message.
                     inner.RemoveMessage(messageSub);
+                    break;
                 }
-            }
-            else if (message.Tag == 2)
-            {
-                Assert.Equal("HiTest2", message.ReadString());
-            }
-            else
-            {
-                Assert.Fail("Invalid tag was read.");
+                case 2:
+                    Assert.Equal("HiTest2", message.ReadString());
+                    break;
+                default:
+                    Assert.Fail("Invalid tag was read.");
+                    break;
             }
         }
 
         // Check if the magic was successful.
         Assert.Equal(messageExpected.Length, reader.Length);
-        Assert.Equal(messageExpected.ToByteArray(true), reader.Buffer.Take(reader.Length).ToArray());
+        Assert.Equal(messageExpected.ToByteArray(true), reader.Buffer!.Take(reader.Length).ToArray());
 
         // Test ownership.
         var readerTwo = readerPool.Get();

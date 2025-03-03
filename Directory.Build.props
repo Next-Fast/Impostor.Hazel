@@ -1,6 +1,6 @@
 <Project>
     <PropertyGroup>
-        <TargetFrameworks>net9.0;net8.0;net6.0</TargetFrameworks>
+        <TargetFrameworks>net9.0;net6.0</TargetFrameworks>
         <LangVersion>latest</LangVersion>
         <Authors>Impostor,Next-Fast</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -9,5 +9,7 @@
         <VersionPrefix>1.0.2</VersionPrefix>
         <VersionSuffix>dev</VersionSuffix>
         <PackageLicense>MIT</PackageLicense>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     </PropertyGroup>
 </Project>

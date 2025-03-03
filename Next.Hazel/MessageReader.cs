@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -19,11 +20,13 @@ public class MessageReader : IMessageReader
 
     public int BytesRemaining => Length - Position;
 
-    public MessageReader Parent { get; private set; }
+    public IMessageReader? Parent => _parent;
+    
+    private MessageReader? _parent { get; set; }
 
     private int ReadPosition => Offset + Position;
 
-    public byte[] Buffer { get; private set; }
+    public byte[]? Buffer { get; private set; }
 
     public int Offset { get; internal set; }
 
@@ -42,7 +45,7 @@ public class MessageReader : IMessageReader
         Position += length;
 
         var reader = _pool.Get();
-        reader.Update(Buffer, pos, 0, length, tag, this);
+        reader.Update(Buffer!, pos, 0, length, tag, this);
         return reader;
     }
 
@@ -59,11 +62,11 @@ public class MessageReader : IMessageReader
         var offsetEnd = message.Offset + message.Length;
 
         // The amount of bytes to copy over ourselves.
-        var lengthToCopy = message.Buffer.Length - offsetEnd;
+        var lengthToCopy = message.Buffer!.Length - offsetEnd;
 
-        System.Buffer.BlockCopy(Buffer, offsetEnd, Buffer, offsetStart, lengthToCopy);
+        System.Buffer.BlockCopy(Buffer!, offsetEnd, Buffer!, offsetStart, lengthToCopy);
 
-        ((MessageReader)message).Parent.AdjustLength(message.Offset, message.Length + 3);
+        ((MessageReader)message)._parent?.AdjustLength(message.Offset, message.Length + 3);
     }
 
     public void Dispose()
@@ -81,7 +84,7 @@ public class MessageReader : IMessageReader
     public IMessageReader Copy(int offset = 0)
     {
         var reader = _pool.Get();
-        reader.Update(Buffer, Offset + offset, Position, Length - offset, Tag, Parent);
+        reader.Update(Buffer!, Offset + offset, Position, Length - offset, Tag, _parent);
         return reader;
     }
 
@@ -91,7 +94,7 @@ public class MessageReader : IMessageReader
     }
 
     public void Update(byte[] buffer, int offset = 0, int position = 0, int? length = null, byte tag = byte.MaxValue,
-        MessageReader parent = null)
+        MessageReader? parent = null)
     {
         _inUse = true;
 
@@ -100,7 +103,7 @@ public class MessageReader : IMessageReader
         Position = position;
         Length = length ?? buffer.Length;
         Tag = tag;
-        Parent = parent;
+        _parent = parent;
     }
 
     internal void Reset()
@@ -112,12 +115,12 @@ public class MessageReader : IMessageReader
         Offset = 0;
         Position = 0;
         Length = 0;
-        Parent = null;
+        _parent = null;
     }
 
-    public void InsertMessage(IMessageReader reader, IMessageWriter writer)
+    /*public void InsertMessage(IMessageReader reader, IMessageWriter writer)
     {
-    }
+    }*/
 
     private void AdjustLength(int offset, int amount)
     {
@@ -125,25 +128,23 @@ public class MessageReader : IMessageReader
 
         if (ReadPosition > offset) Position -= amount;
 
-        if (Parent != null)
-        {
-            var lengthOffset = Offset - 3;
-            var curLen = Buffer[lengthOffset] |
-                         (Buffer[lengthOffset + 1] << 8);
+        if (_parent == null || Buffer == null) return;
+        var lengthOffset = Offset - 3;
+        var curLen = Buffer[lengthOffset] |
+                     (Buffer[lengthOffset + 1] << 8);
 
-            curLen -= amount;
+        curLen -= amount;
 
-            Buffer[lengthOffset] = (byte)curLen;
-            Buffer[lengthOffset + 1] = (byte)(Buffer[lengthOffset + 1] >> 8);
+        Buffer[lengthOffset] = (byte)curLen;
+        Buffer[lengthOffset + 1] = (byte)(Buffer[lengthOffset + 1] >> 8);
 
-            Parent.AdjustLength(offset, amount);
-        }
+        _parent.AdjustLength(offset, amount);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private byte FastByte()
     {
-        return Buffer[Offset + Position++];
+        return Buffer![Offset + Position++];
     }
 
     #region Read Methods
