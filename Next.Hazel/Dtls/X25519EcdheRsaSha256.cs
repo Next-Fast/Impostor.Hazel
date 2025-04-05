@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using Next.Hazel.Crypto;
+using Next.Hazel.Dtls.Handshake.Constant;
+using HashAlgorithm = Next.Hazel.Dtls.Handshake.Constant.HashAlgorithm;
 
 namespace Next.Hazel.Dtls;
 
