@@ -41,10 +41,7 @@ public struct ServerHello
         result.Random = span[..Constant.Random.Size];
         span = span[Constant.Random.Size..];
 
-        if (!HazelDtlsSessionInfo.Parse(out result.Session, span))
-        {
-            return false;
-        }
+        if (!HazelDtlsSessionInfo.Parse(out result.Session, span)) return false;
 
         span = span[result.Session.FullSize..];
 

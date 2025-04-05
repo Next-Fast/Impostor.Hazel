@@ -3,7 +3,7 @@ using System;
 namespace Next.Hazel.Dtls.Handshake;
 
 /// <summary>
-/// Encode/Decode session information in ClientHello
+///     Encode/Decode session information in ClientHello
 /// </summary>
 public struct HazelDtlsSessionInfo
 {
@@ -34,19 +34,13 @@ public struct HazelDtlsSessionInfo
     {
         writer[0] = PayloadSize;
 
-        if (Version > 0)
-        {
-            writer[1] = Version;
-        }
+        if (Version > 0) writer[1] = Version;
     }
 
     public static bool Parse(out HazelDtlsSessionInfo result, ByteSpan reader)
     {
         result = new HazelDtlsSessionInfo();
-        if (reader.Length < 1)
-        {
-            return false;
-        }
+        if (reader.Length < 1) return false;
 
         result.PayloadSize = reader[0];
 

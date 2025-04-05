@@ -25,6 +25,11 @@ namespace Next.Hazel.Dtls;
 public class DtlsConnectionListener : UdpConnectionListener
 {
     private const int MaxDatagramSize = 1200;
+
+    private const int MaxCertFragmentSizeV0 = 1200;
+
+    // Min MTU - UDP+IP header - 1 (for good measure. :))
+    private const int MaxCertFragmentSizeV1 = 576 - 32 - 1;
     private static readonly ILogger Logger = Log.ForContext<DtlsConnectionListener>();
     private static readonly TimeSpan CookieHmacRotationTimeout = TimeSpan.FromHours(1.0);
 
@@ -32,7 +37,6 @@ public class DtlsConnectionListener : UdpConnectionListener
     private readonly List<ByteSpan> encodedCertificates = new();
 
     private readonly ConcurrentDictionary<IPEndPoint, PeerData> existingPeers = new();
-    public int PeerCount => existingPeers.Count;
     private RSA certificatePrivateKey;
 
     private int connectionSerial_unsafe;
@@ -61,6 +65,8 @@ public class DtlsConnectionListener : UdpConnectionListener
         previousCookieHmac = CreateNewCookieHMAC();
         nextCookieHmacRotation = DateTime.UtcNow + CookieHmacRotationTimeout;
     }
+
+    public int PeerCount => existingPeers.Count;
 
     internal async ValueTask SendData(ByteSpan span, IPEndPoint endPoint)
     {
@@ -647,7 +653,8 @@ public class DtlsConnectionListener : UdpConnectionListener
                         ContentType = ContentType.ChangeCipherSpec,
                         Epoch = (ushort)(peer.Epoch - 1),
                         SequenceNumber = peer.CurrentEpoch.NextOutgoingSequenceForPreviousEpoch,
-                        Length = (ushort)peer.CurrentEpoch.PreviousRecordProtection.GetEncryptedSize(ChangeCipherSpec.Size)
+                        Length = (ushort)peer.CurrentEpoch.PreviousRecordProtection.GetEncryptedSize(ChangeCipherSpec
+                            .Size)
                     };
                     ++peer.CurrentEpoch.NextOutgoingSequenceForPreviousEpoch;
 
@@ -657,7 +664,8 @@ public class DtlsConnectionListener : UdpConnectionListener
                         ContentType = ContentType.Handshake,
                         Epoch = peer.Epoch,
                         SequenceNumber = peer.CurrentEpoch.NextOutgoingSequence,
-                        Length = (ushort)peer.CurrentEpoch.RecordProtection.GetEncryptedSize(plaintextFinishedPayloadSize)
+                        Length = (ushort)peer.CurrentEpoch.RecordProtection.GetEncryptedSize(
+                            plaintextFinishedPayloadSize)
                     };
                     ++peer.CurrentEpoch.NextOutgoingSequence;
 
@@ -720,10 +728,6 @@ public class DtlsConnectionListener : UdpConnectionListener
         return true;
     }
 
-    private const int MaxCertFragmentSizeV0 = 1200;
-    // Min MTU - UDP+IP header - 1 (for good measure. :))
-    private const int MaxCertFragmentSizeV1 = 576 - 32 - 1;
-    
     /// <summary>
     ///     Handle a ClientHello message for a peer
     /// </summary>
@@ -827,7 +831,7 @@ public class DtlsConnectionListener : UdpConnectionListener
                     Logger.Error($"Dropping ClientHello from `{peerAddress}` Could not create handshake cipher suite");
                     return false;
             }*/
-            
+
             if (clientHello.ContainsCurve(NamedCurve.x25519))
             {
                 handshakeCipherSuite = new X25519EcdheRsaSha256(random);
@@ -838,7 +842,7 @@ public class DtlsConnectionListener : UdpConnectionListener
                     $"Dropping ClientHello from `{peerAddress}` Could not create TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 cipher suite");
                 return false;
             }
-            
+
             peer.Session = clientHello.SessionInfo;
 
             // Update the state of our epoch transition
@@ -899,7 +903,7 @@ public class DtlsConnectionListener : UdpConnectionListener
             FragmentOffset = 0
         };
         serverHelloHandshake.FragmentLength = serverHelloHandshake.Length;
-        
+
         var maxCertFragmentSize = peer.Session.Version == 0 ? MaxCertFragmentSizeV0 : MaxCertFragmentSizeV1;
 
         var certificateHandshake = new Handshake.Handshake
@@ -1084,13 +1088,12 @@ public class DtlsConnectionListener : UdpConnectionListener
         // The protocol only supports receiving a single record
         // from a non-peer.
         if (record.Length != message.Length)
-        {
             if (message.Length < record.Length)
             {
-                Logger.Information($"Dropping bad record from non-peer `{peerAddress}`. Msg length {message.Length} < {record.Length}");
+                Logger.Information(
+                    $"Dropping bad record from non-peer `{peerAddress}`. Msg length {message.Length} < {record.Length}");
                 return;
             }
-        }
 
         // We only accept zero-epoch records from non-peers
         if (record.Epoch != 0) return;
@@ -1220,7 +1223,7 @@ public class DtlsConnectionListener : UdpConnectionListener
     //
     //     return base.DisconnectOldConnections(maxAge, disconnectMessage);
     // }
-    
+
     internal void RemovePeerRecord(ConnectionId connectionId)
     {
         existingPeers.TryRemove(connectionId.EndPoint, out _);
@@ -1304,19 +1307,18 @@ public class DtlsConnectionListener : UdpConnectionListener
     /// </summary>
     private sealed class PeerData : IDisposable
     {
+        public readonly ProtocolVersion ProtocolVersion;
         public readonly List<ByteSpan> QueuedApplicationDataMessage = [];
 
         public readonly SemaphoreSlim Semaphore = new(1, 1);
         public bool CanHandleApplicationData;
-        
-        public HazelDtlsSessionInfo Session;
 
         public ConnectionId ConnectionId;
         public CurrentEpoch CurrentEpoch;
         public ushort Epoch;
         public NextEpoch NextEpoch;
-        
-        public readonly ProtocolVersion ProtocolVersion;
+
+        public HazelDtlsSessionInfo Session;
 
         public DateTime StartOfNegotiation;
 

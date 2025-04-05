@@ -18,13 +18,13 @@ public class MessageReader : IMessageReader
         _pool = pool;
     }
 
-    public int BytesRemaining => Length - Position;
-
-    public IMessageReader? Parent => _parent;
-    
     private MessageReader? _parent { get; set; }
 
     private int ReadPosition => Offset + Position;
+
+    public int BytesRemaining => Length - Position;
+
+    public IMessageReader? Parent => _parent;
 
     public byte[]? Buffer { get; private set; }
 

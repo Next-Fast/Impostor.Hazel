@@ -35,9 +35,7 @@ public struct HelloVerifyRequest
 
         result.ServerProtocolVersion = (ProtocolVersion)span.ReadBigEndian16();
         if (expectedProtocolVersion.HasValue && result.ServerProtocolVersion != expectedProtocolVersion.Value)
-        {
             return false;
-        }
 
 
         var cookieSize = span[2];

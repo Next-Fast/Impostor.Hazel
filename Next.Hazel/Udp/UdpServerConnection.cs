@@ -6,6 +6,7 @@ using Microsoft.Extensions.ObjectPool;
 using Next.Hazel.Abstractions;
 
 namespace Next.Hazel.Udp;
+
 internal sealed class UdpServerConnection : UdpConnection
 {
     /// <summary>

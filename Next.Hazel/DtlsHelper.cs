@@ -9,6 +9,7 @@ using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
 
 namespace Next.Hazel;
+
 // https://github.com/willardf/Hazel-Networking/blob/main/Hazel.UnitTests/Dtls/DtlsConnectionTests.cs
 public static class DtlsHelper
 {
@@ -21,8 +22,8 @@ public static class DtlsHelper
 #else
         var certificate = X509CertificateLoader.LoadCertificate(rawData);
 #endif
-        return privateKey != null 
-            ? certificate.CopyWithPrivateKey(privateKey) 
+        return privateKey != null
+            ? certificate.CopyWithPrivateKey(privateKey)
             : certificate;
     }
 
@@ -30,7 +31,7 @@ public static class DtlsHelper
     {
         return new X509Certificate2Collection(certificate);
     }
-    
+
     public static byte[] DecodePEM(string pemData)
     {
         var result = new List<byte>();
@@ -38,10 +39,7 @@ public static class DtlsHelper
         var lines = pemData.Replace("\r", "").Split('\n');
         foreach (var line in lines)
         {
-            if (line.StartsWith("-----"))
-            {
-                continue;
-            }
+            if (line.StartsWith("-----")) continue;
 
             var lineData = Convert.FromBase64String(line);
             result.AddRange(lineData);

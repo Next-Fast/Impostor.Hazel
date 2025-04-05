@@ -27,6 +27,10 @@ public interface IMessageReader : IDisposable
     /// </summary>
     int Length { get; }
 
+    int BytesRemaining { get; }
+
+    IMessageReader? Parent { get; }
+
     IMessageReader ReadMessage();
 
     bool ReadBoolean();
@@ -68,8 +72,4 @@ public interface IMessageReader : IDisposable
     void RemoveMessage(IMessageReader message);
 
     IMessageReader Copy(int offset = 0);
-
-    int BytesRemaining { get; }
-    
-    IMessageReader? Parent { get; }
 }

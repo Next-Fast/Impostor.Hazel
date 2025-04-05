@@ -53,7 +53,7 @@ public class MessageWriter : IMessageWriter, IRecyclable
                 System.Buffer.BlockCopy(Buffer, 1, output, 0, Length - 1);
                 return output;
             }
-            
+
             default:
                 return [];
         }

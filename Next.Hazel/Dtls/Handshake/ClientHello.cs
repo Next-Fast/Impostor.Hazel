@@ -54,16 +54,14 @@ public struct ClientHello
         if (span.Length < MinSize) return false;
 
         result.ClientProtocolVersion = (ProtocolVersion)span.ReadBigEndian16();
-        if (expectedProtocolVersion.HasValue && result.ClientProtocolVersion != expectedProtocolVersion.Value) return false;
+        if (expectedProtocolVersion.HasValue && result.ClientProtocolVersion != expectedProtocolVersion.Value)
+            return false;
         span = span[2..];
 
         result.Random = span[..Constant.Random.Size];
         span = span[Constant.Random.Size..];
 
-        if (!HazelDtlsSessionInfo.Parse(out result.SessionInfo, span))
-        {
-            return false;
-        }
+        if (!HazelDtlsSessionInfo.Parse(out result.SessionInfo, span)) return false;
 
         span = span[result.SessionInfo.FullSize..];
 

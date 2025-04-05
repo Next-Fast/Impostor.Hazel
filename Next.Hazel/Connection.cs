@@ -136,7 +136,7 @@ public abstract class Connection : IDisposable
     protected virtual void SetState(ConnectionState state)
     {
     }
-    
+
     /// <param name="msg">The message to send.</param>
     /// <remarks>
     ///     <include file="DocInclude/common.xml" path="docs/item[@name='Connection_SendBytes_General']/*" />
@@ -147,7 +147,7 @@ public abstract class Connection : IDisposable
     ///     </para>
     /// </remarks>
     public abstract ValueTask SendAsync(IMessageWriter msg);
-    
+
     /// <param name="bytes">The bytes of the message to send.</param>
     /// <param name="sendOption">The option specifying how the message should be sent.</param>
     /// <remarks>

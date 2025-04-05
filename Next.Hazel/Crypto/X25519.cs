@@ -65,7 +65,7 @@ public static class X25519
         var swap = 0;
         for (var pos = 254; pos >= 0; --pos)
         {
-            var b = maskedScalar[pos / 8] >> pos % 8;
+            var b = maskedScalar[pos / 8] >> (pos % 8);
             b &= 1;
             swap ^= b;
 
