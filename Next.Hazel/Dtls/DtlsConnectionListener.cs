@@ -764,7 +764,7 @@ public class DtlsConnectionListener : UdpConnectionListener
         }
 
         // Find an acceptable cipher suite we can use
-        var selectedCipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+        const CipherSuite selectedCipherSuite = CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
         if (!clientHello.ContainsCipherSuite(CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) ||
             !clientHello.ContainsCurve(NamedCurve.x25519))
         {
@@ -787,7 +787,7 @@ public class DtlsConnectionListener : UdpConnectionListener
                     recordProtection = peer.CurrentEpoch.RecordProtection;
                 }
 
-                await SendHelloVerifyRequest(peerAddress, outgoingSequence, record.Epoch, recordProtection);
+                await SendHelloVerifyRequest(peerAddress, outgoingSequence, record.Epoch, recordProtection, peer.ProtocolVersion);
                 return true;
             }
 
@@ -1132,7 +1132,7 @@ public class DtlsConnectionListener : UdpConnectionListener
         if (!HelloVerifyRequest.VerifyCookie(clientHello.Cookie, peerAddress, currentCookieHmac))
             if (!HelloVerifyRequest.VerifyCookie(clientHello.Cookie, peerAddress, previousCookieHmac))
             {
-                await SendHelloVerifyRequest(peerAddress, 1, 0, NullRecordProtection.Instance);
+                await SendHelloVerifyRequest(peerAddress, 1, 0, NullRecordProtection.Instance, clientHello.ClientProtocolVersion);
                 return;
             }
 
@@ -1151,7 +1151,7 @@ public class DtlsConnectionListener : UdpConnectionListener
 
     //Send a HelloVerifyRequest handshake message to a peer
     private ValueTask SendHelloVerifyRequest(IPEndPoint peerAddress, ulong recordSequence, ushort epoch,
-        IRecordProtection recordProtection)
+        IRecordProtection recordProtection, ProtocolVersion protocolVersion)
     {
         // Do we need to rotate the HMAC key?
         var now = DateTime.UtcNow;
@@ -1177,6 +1177,7 @@ public class DtlsConnectionListener : UdpConnectionListener
         var record = new Record
         {
             ContentType = ContentType.Handshake,
+            ProtocolVersion = protocolVersion,
             Epoch = epoch,
             SequenceNumber = recordSequence,
             Length = (ushort)recordProtection.GetEncryptedSize(plaintextPayloadSize)
@@ -1189,7 +1190,7 @@ public class DtlsConnectionListener : UdpConnectionListener
         writer = writer[Record.Size..];
         handshake.Encode(writer);
         writer = writer[Handshake.Handshake.Size..];
-        HelloVerifyRequest.Encode(writer, peerAddress, currentCookieHmac);
+        HelloVerifyRequest.Encode(writer, peerAddress, currentCookieHmac, protocolVersion);
 
         // Protect record payload
         recordProtection.EncryptServerPlaintext(

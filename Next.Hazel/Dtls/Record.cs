@@ -93,9 +93,7 @@ public struct ChangeCipherSpec
         if (span.Length != 1) return false;
 
         var value = (Value)span[0];
-        if (value != Value.ChangeCipherSpec) return false;
-
-        return true;
+        return value == Value.ChangeCipherSpec;
     }
 
     /// <summary>

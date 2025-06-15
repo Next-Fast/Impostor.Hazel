@@ -53,11 +53,12 @@ public struct HelloVerifyRequest
     /// <param name="span"></param>
     /// <param name="peerAddress">Address of the remote peer</param>
     /// <param name="hmac">Listener HMAC signature provider</param>
-    public static void Encode(ByteSpan span, EndPoint peerAddress, HMAC hmac)
+    /// <param name="protocolVersion"></param>
+    public static void Encode(ByteSpan span, EndPoint peerAddress, HMAC hmac, ProtocolVersion protocolVersion)
     {
         var cookie = ComputeAddressMac(peerAddress, hmac);
 
-        span.WriteBigEndian16((ushort)ProtocolVersion.DTLS1_2);
+        span.WriteBigEndian16((ushort)protocolVersion);
         span[2] = CookieSize;
         cookie.CopyTo(span[3..]);
     }
