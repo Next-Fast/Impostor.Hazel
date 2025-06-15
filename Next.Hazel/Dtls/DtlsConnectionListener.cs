@@ -278,8 +278,7 @@ public class DtlsConnectionListener : UdpConnectionListener
                     {
                         var handshakePayload = recordPayload;
 
-                        Handshake.Handshake handshake;
-                        if (!Handshake.Handshake.Parse(out handshake, recordPayload))
+                        if (!Handshake.Handshake.Parse(out var handshake, recordPayload))
                         {
                             Logger.Error($"Dropping malformed re-negotiation Handshake from `{peerAddress}`");
                             continue;
