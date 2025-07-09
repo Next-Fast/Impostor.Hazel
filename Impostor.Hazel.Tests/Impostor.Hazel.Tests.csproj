@@ -22,7 +22,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Next.Hazel\Next.Hazel.csproj"/>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.6" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.7" />
     </ItemGroup>
 
 </Project>

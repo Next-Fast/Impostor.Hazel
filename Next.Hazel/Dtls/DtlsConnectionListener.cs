@@ -34,7 +34,8 @@ public class DtlsConnectionListener : UdpConnectionListener
     private static readonly TimeSpan CookieHmacRotationTimeout = TimeSpan.FromHours(1.0);
 
     // Private key component of certificate's public key
-    private readonly List<ByteSpan> encodedCertificates = new();
+    private readonly List<ByteSpan> encodedCertificates = [];
+    /*private ByteSpan encodedCertificate;*/
 
     private readonly ConcurrentDictionary<IPEndPoint, PeerData> existingPeers = new();
     private RSA certificatePrivateKey;
@@ -215,6 +216,7 @@ public class DtlsConnectionListener : UdpConnectionListener
             encodedCertificates.Add(certificateData[..Math.Min(certificateData.Length, MaxDatagramSize - padding)]);
             certificateData = certificateData[Math.Min(certificateData.Length, MaxDatagramSize - padding)..];
         }
+        /*encodedCertificate = Certificate.Encode(certificate);*/
     }
 
     /// <summary>
@@ -274,7 +276,7 @@ public class DtlsConnectionListener : UdpConnectionListener
                 if (record.Epoch != peer.Epoch)
                 {
                     // Handle existing client negotiating a new connection
-                    if (record.Epoch == 0 && record.ContentType == ContentType.Handshake)
+                    if (record is { Epoch: 0, ContentType: ContentType.Handshake })
                     {
                         var handshakePayload = recordPayload;
 
@@ -378,10 +380,6 @@ public class DtlsConnectionListener : UdpConnectionListener
                         {
                             Debug.Assert(false,
                                 "How did we receive a ChangeCipherSpec message without a pending record protection instance?");
-
-                            Logger.Error(
-                                $"Dropping ChangeCipherSpec message from `{peerAddress}`: No pending record protection");
-                            break;
                         }
 
                         if (!ChangeCipherSpec.Parse(recordPayload))
@@ -477,8 +475,6 @@ public class DtlsConnectionListener : UdpConnectionListener
                     $"Dropping fragmented Handshake message from `{peerAddress}` Offset({handshake.FragmentOffset}) FragmentLength({handshake.FragmentLength}) Length({handshake.Length})");
                 continue;
             }
-
-            ByteSpan writer;
 
             switch (handshake.MessageType)
             {
@@ -671,7 +667,7 @@ public class DtlsConnectionListener : UdpConnectionListener
                     // Encode the flight into wire format
                     ByteSpan packet = new byte[Record.Size + changeCipherSpecRecord.Length + Record.Size +
                                                finishedRecord.Length];
-                    writer = packet;
+                    var writer = packet;
                     changeCipherSpecRecord.Encode(writer);
                     writer = writer[Record.Size..];
                     ChangeCipherSpec.Encode(writer);
@@ -790,7 +786,7 @@ public class DtlsConnectionListener : UdpConnectionListener
                 await SendHelloVerifyRequest(peerAddress, outgoingSequence, record.Epoch, recordProtection, peer.ProtocolVersion);
                 return true;
             }
-
+        
         // Client is initiating a brand new connection. We need
         // to destroy the existing connection and establish a
         // new session.
@@ -806,31 +802,11 @@ public class DtlsConnectionListener : UdpConnectionListener
 
         // Determine if this is an original message, or a retransmission
         var recordMessagesForVerifyData = false;
+        Logger.Verbose("Determine if this is an original message, or a retransmission");
         if (peer.NextEpoch.State == HandshakeState.ExpectingHello)
         {
             // Create our handhake cipher suite
             IHandshakeCipherSuite handshakeCipherSuite;
-            /*switch (selectedCipherSuite)
-            {
-                case CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
-                    if (clientHello.ContainsCurve(NamedCurve.x25519))
-                    {
-                        handshakeCipherSuite = new X25519EcdheRsaSha256(random);
-                    }
-                    else
-                    {
-                        Logger.Error(
-                            $"Dropping ClientHello from `{peerAddress}` Could not create TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 cipher suite");
-                        return false;
-                    }
-
-                    break;
-
-                default:
-                    Logger.Error($"Dropping ClientHello from `{peerAddress}` Could not create handshake cipher suite");
-                    return false;
-            }*/
-
             if (clientHello.ContainsCurve(NamedCurve.x25519))
             {
                 handshakeCipherSuite = new X25519EcdheRsaSha256(random);
@@ -887,6 +863,7 @@ public class DtlsConnectionListener : UdpConnectionListener
         // messages.
 
         // Describe first record of the flight
+        Logger.Verbose("SeverHello");
         var serverHello = new ServerHello
         {
             ServerProtocolVersion = peer.ProtocolVersion,
@@ -904,23 +881,31 @@ public class DtlsConnectionListener : UdpConnectionListener
         serverHelloHandshake.FragmentLength = serverHelloHandshake.Length;
 
         var maxCertFragmentSize = peer.Session.Version == 0 ? MaxCertFragmentSizeV0 : MaxCertFragmentSizeV1;
+        
+        /*var certificateData = encodedCertificate;
+        var initialCertPadding = Record.Size + Handshake.Handshake.Size + serverHello.Size + Handshake.Handshake.Size;
+        var certInitialFragmentSize = Math.Min(certificateData.Length, maxCertFragmentSize - initialCertPadding);
 
+        Logger.Verbose("certificateHandshake");*/
         var certificateHandshake = new Handshake.Handshake
         {
             MessageType = HandshakeType.Certificate,
             Length = encodedCertificatesTotalSize,
+            /*Length = (uint)certificateData.Length,*/
             MessageSequence = 2,
             FragmentOffset = 0,
+            /*FragmentLength = (uint)certInitialFragmentSize*/
             FragmentLength = (uint)encodedCertificates[0].Length
         };
 
         var initialRecordPayloadSize = 0
-                                       + Handshake.Handshake.Size + ServerHello.MinSize
+                                       + Handshake.Handshake.Size + serverHello.Size
                                        + Handshake.Handshake.Size + (int)certificateHandshake.FragmentLength
             ;
         var initialRecord = new Record
         {
             ContentType = ContentType.Handshake,
+            ProtocolVersion = peer.ProtocolVersion,
             Epoch = peer.Epoch,
             SequenceNumber = peer.CurrentEpoch.NextOutgoingSequence,
             Length = (ushort)peer.CurrentEpoch.RecordProtection.GetEncryptedSize(initialRecordPayloadSize)
@@ -929,6 +914,7 @@ public class DtlsConnectionListener : UdpConnectionListener
 
         // Convert initial record of the flight to
         // wire format
+        Logger.Verbose("Convert initial record of the flight to");
         ByteSpan packet = new byte[Record.Size + initialRecord.Length];
         var writer = packet;
         initialRecord.Encode(writer);
@@ -940,6 +926,8 @@ public class DtlsConnectionListener : UdpConnectionListener
         certificateHandshake.Encode(writer);
         writer = writer[Handshake.Handshake.Size..];
         encodedCertificates[0].CopyTo(writer);
+        /*certificateData[..certInitialFragmentSize].CopyTo(writer);
+        certificateData = certificateData[certInitialFragmentSize..];*/
 
         // Protect initial record of the flight
         peer.CurrentEpoch.RecordProtection.EncryptServerPlaintext(
@@ -951,6 +939,7 @@ public class DtlsConnectionListener : UdpConnectionListener
         await SendData(packet, peerAddress);
 
         // Record record payload for verification
+        Logger.Verbose("Record record payload for verification");
         if (recordMessagesForVerifyData)
         {
             var fullCeritficateHandshake = certificateHandshake;
@@ -966,10 +955,50 @@ public class DtlsConnectionListener : UdpConnectionListener
             writer.Slice(Handshake.Handshake.Size);
 
             peer.NextEpoch.VerificationStream.AddData(packet);
+            /*peer.NextEpoch.VerificationStream.AddData(certificateData);*/
             foreach (var span in encodedCertificates) peer.NextEpoch.VerificationStream.AddData(span);
         }
 
         // Process additional certificate records
+        Logger.Verbose("Process additional certificate records");
+        /*const int CertPadding = Record.Size + Handshake.Handshake.Size;
+        while (certificateData.Length > 0)
+        {
+            var certFragmentSize = Math.Min(certificateData.Length, maxCertFragmentSize - CertPadding);
+            
+            certificateHandshake.FragmentOffset += certificateHandshake.FragmentLength;
+            certificateHandshake.FragmentLength = (uint)certFragmentSize;
+
+            var additionalRecordPayloadSize = Handshake.Handshake.Size + (int)certificateHandshake.FragmentLength;
+            var additionalRecord = new Record
+            {
+                ContentType = ContentType.Handshake,
+                ProtocolVersion = peer.ProtocolVersion,
+                Epoch = peer.Epoch,
+                SequenceNumber = peer.CurrentEpoch.NextOutgoingSequence,
+                Length = (ushort)peer.CurrentEpoch.RecordProtection.GetEncryptedSize(additionalRecordPayloadSize)
+            };
+            ++peer.CurrentEpoch.NextOutgoingSequence;
+
+            // Convert record to wire format
+            packet = new byte[Record.Size + additionalRecord.Length];
+            writer = packet;
+            additionalRecord.Encode(writer);
+            writer = writer[Record.Size..];
+            certificateHandshake.Encode(writer);
+            writer = writer[Handshake.Handshake.Size..];
+            certificateData[..certFragmentSize].CopyTo(writer);
+            certificateData = certificateData[certFragmentSize..];
+
+            // Protect record
+            peer.CurrentEpoch.RecordProtection.EncryptServerPlaintext(
+                packet.Slice(Record.Size, additionalRecord.Length),
+                packet.Slice(Record.Size, additionalRecordPayloadSize),
+                ref additionalRecord
+                );
+            
+            await SendData(packet, peerAddress);
+        }*/
         for (int ii = 1, nn = encodedCertificates.Count; ii != nn; ++ii)
         {
             certificateHandshake.FragmentOffset += certificateHandshake.FragmentLength;
@@ -1035,6 +1064,7 @@ public class DtlsConnectionListener : UdpConnectionListener
             Length = (ushort)peer.CurrentEpoch.RecordProtection.GetEncryptedSize(finalRecordPayloadSize)
         };
         ++peer.CurrentEpoch.NextOutgoingSequence;
+        Logger.Verbose("finalRecordPayload");
 
         // Convert final record of the flight to wire
         // format
@@ -1047,6 +1077,7 @@ public class DtlsConnectionListener : UdpConnectionListener
         peer.NextEpoch.Handshake.EncodeServerKeyExchangeMessage(writer, certificatePrivateKey);
         writer = writer[(int)serverKeyExchangeHandshake.Length..];
         serverHelloDoneHandshake.Encode(writer);
+        Logger.Verbose("Convert final record of the flight to wire");
 
         // Record record payload for verification
         if (recordMessagesForVerifyData)

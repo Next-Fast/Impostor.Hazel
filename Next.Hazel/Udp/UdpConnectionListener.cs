@@ -34,13 +34,15 @@ public class UdpConnectionListener : NetworkConnectionListener
     /// </summary>
     public AcceptConnectionCheck AcceptConnection;
 
+    #nullable enable
     /// <summary>
     ///     Creates a new UdpConnectionListener for the given <see cref="IPAddress" />, port and <see cref="IPMode" />.
     /// </summary>
     /// <param name="endPoint">The endpoint to listen on.</param>
     /// <param name="readerPool"></param>
     /// <param name="ipMode"></param>
-    public UdpConnectionListener(IPEndPoint endPoint, ObjectPool<MessageReader> readerPool, IPMode ipMode = IPMode.IPv4)
+    /// <param name="Setup"></param>
+    public UdpConnectionListener(IPEndPoint endPoint, ObjectPool<MessageReader> readerPool, IPMode ipMode = IPMode.IPv4, Action<UdpClient, UdpConnectionRateLimit>? Setup = null)
     {
         EndPoint = endPoint;
         IPMode = ipMode;
@@ -64,9 +66,10 @@ public class UdpConnectionListener : NetworkConnectionListener
         _stoppingCts.Token.Register(() => { _socket.Dispose(); });
 
         _connectionRateLimit = new UdpConnectionRateLimit();
+        Setup?.Invoke(_socket, _connectionRateLimit);
     }
 
-    private async void ManageReliablePackets(object state)
+    private async void ManageReliablePackets(object? state)
     {
         foreach (var kvp in _allConnections)
         {
@@ -91,10 +94,9 @@ public class UdpConnectionListener : NetworkConnectionListener
         _executingTask = Task.Factory.StartNew(ListenAsync, TaskCreationOptions.LongRunning);
 
         // If the task is completed then return it, this will bubble cancellation and failure to the caller
-        if (_executingTask.IsCompleted) return _executingTask;
-
-        // Otherwise it's running
-        return Task.CompletedTask;
+        return _executingTask.IsCompleted ? _executingTask :
+            // Otherwise it's running
+            Task.CompletedTask;
     }
 
     private async Task StopAsync()
@@ -105,7 +107,7 @@ public class UdpConnectionListener : NetworkConnectionListener
         try
         {
             // Signal cancellation to the executing method
-            _stoppingCts.Cancel();
+            await _stoppingCts.CancelAsync();
         }
         finally
         {

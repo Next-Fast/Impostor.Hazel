@@ -162,8 +162,11 @@ public class UPnPHelper : IDisposable
 
             var nsMgr = new XmlNamespaceManager(desc.NameTable);
             nsMgr.AddNamespace("tns", "urn:schemas-upnp-org:device-1-0");
-            var typen = desc.SelectSingleNode("//tns:device/tns:deviceType/text()", nsMgr);
-            if (!typen.Value.Contains("InternetGatewayDevice"))
+            var typeNode = desc.SelectSingleNode("//tns:device/tns:deviceType/text()", nsMgr);
+            if (typeNode?.Value == null)
+                return false;
+            
+            if (!typeNode.Value.Contains("InternetGatewayDevice"))
                 return false;
 
             serviceName = "WANIPConnection";
@@ -212,7 +215,7 @@ public class UPnPHelper : IDisposable
         switch (Status)
         {
             case UPnPStatus.NotAvailable:
-                return false;
+                break;
             case UPnPStatus.Available:
                 return true;
             case UPnPStatus.Discovering:

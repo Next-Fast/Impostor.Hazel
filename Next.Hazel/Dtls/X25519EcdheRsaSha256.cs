@@ -46,8 +46,7 @@ public class X25519EcdheRsaSha256 : IHandshakeCipherSuite
     /// <inheritdoc />
     public int CalculateServerMessageSize(object privateKey)
     {
-        var rsaPrivateKey = privateKey as RSA;
-        if (rsaPrivateKey == null) throw new ArgumentException("Invalid private key", nameof(privateKey));
+        if (privateKey is not RSA rsaPrivateKey) throw new ArgumentException("Invalid private key", nameof(privateKey));
 
         return CalculateServerMessageSize(rsaPrivateKey.KeySize);
     }
@@ -82,8 +81,7 @@ public class X25519EcdheRsaSha256 : IHandshakeCipherSuite
     public bool VerifyServerMessageAndGenerateSharedKey(ByteSpan output, ByteSpan serverKeyExchangeMessage,
         object publicKey)
     {
-        var rsaPublicKey = publicKey as RSA;
-        if (rsaPublicKey == null) return false;
+        if (publicKey is not RSA rsaPublicKey) return false;
 
         if (output.Length != X25519.KeySize) return false;
 
